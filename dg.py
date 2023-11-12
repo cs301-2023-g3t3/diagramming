@@ -70,13 +70,12 @@ with Diagram("Architecture Diagram", show=False, direction="TB"):
             
                 pri_DB >> Edge(label = "Synchronize") >> rr
                 vpcpc = VPCPeering("VPC Peering Connection")
-                ecr = ElasticacheForRedis("ElastiCache (Redis)")
 
         g1 >> Edge(label = "Forward Requests") >> [user_storage,points_ledger,maker_checker]
         g2 >> Edge(label = "Forward Requests") >> [user_storage,points_ledger,maker_checker]
         [g1,g2] >> Edge(label = "Query Logs") >> logs >> Edge(label = "Fetch Logs") >> s3
 
-        maker_checker >> ecr >> user_storage
+        maker_checker >> user_storage
         maker_checker >> Edge(label = "Maker Requests Approved") >> points_ledger
         maker_checker >> vpcpc >> mongodb
 
