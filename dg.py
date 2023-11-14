@@ -6,7 +6,7 @@ from diagrams.aws.network import Route53, VPCPeering
 from diagrams.aws.mobile import Amplify, APIGateway
 from diagrams.aws.security import Cognito, WAF, IdentityAndAccessManagementIam
 from diagrams.aws.compute import Lambda
-from diagrams.aws.database import Aurora, ElasticacheForRedis
+from diagrams.aws.database import Aurora
 from diagrams.aws.storage import SimpleStorageServiceS3
 from diagrams.aws.management import Cloudwatch
 from diagrams.aws.integration import SimpleQueueServiceSqs
@@ -17,29 +17,29 @@ from diagrams.custom import Custom
 with Diagram("Architecture Diagram", show=False, direction="TB"):
     user = User("Users")
     ext_sys = Rack("External Systems")
-    mongodb = Custom("MongoDB","./custom_icons/mongodbicon.png")
+    with Cluster("MongoDB Atlas Cluster"):
+        mongodb = Custom("MongoDB","./custom_icons/mongodbicon.png")
 
     with Cluster("AWS Cloud"):
         rt53 = Route53("Route 53")
         amplify = Amplify("AWS Amplify")
-        cognito = Cognito("Amazon Cognito")
+        with Cluster("auth"):
+            cognito = Cognito("Amazon Cognito")
+            auth_lambda = Lambda("AWS Lambda")
 
         [ext_sys,user] >> Edge(label = "Uses") >> rt53
         rt53 >> amplify >> Edge(label = "User Login") >> cognito
         
         with Cluster("AWS API Gateway"):
-            with Cluster("Primary Region"):
+            with Cluster("Region (ap-southeast-1"):
                 g1 = APIGateway("AWS API Gateway")
-       
-            with Cluster("Failover Region"):
-                g2 = APIGateway("AWS API Gateway")
 
-        rt53 >> Edge(label = "HTTPS Request") >> [g1,g2]
-        amplify >> Edge(label = "HTTPS Request") >> [g1,g2]
-        [g1,g2] >> Edge(label = "Verify") >> cognito
 
-        with Cluster("Rest API"):
-            logs = Lambda("AWS Lambda")
+        rt53 >> Edge(label = "HTTPS Request") >> g1
+        amplify >> Edge(label = "HTTPS Request") >> g1
+        g1 >> Edge(label = "Verify") >> cognito
+
+        logs = Lambda("AWS Lambda")
  
         with Cluster("Other services"):
             WAF("AWS WAF")
@@ -70,14 +70,12 @@ with Diagram("Architecture Diagram", show=False, direction="TB"):
             
                 pri_DB >> Edge(label = "Synchronize") >> rr
                 vpcpc = VPCPeering("VPC Peering Connection")
-                ecr = ElasticacheForRedis("ElastiCache (Redis)")
 
         g1 >> Edge(label = "Forward Requests") >> [user_storage,points_ledger,maker_checker]
-        g2 >> Edge(label = "Forward Requests") >> [user_storage,points_ledger,maker_checker]
-        [g1,g2] >> Edge(label = "Query Logs") >> logs >> Edge(label = "Fetch Logs") >> s3
+        g1 >> Edge(label = "Query Logs") >> logs >> Edge(label = "Fetch Logs") >> s3
 
-        maker_checker >> ecr >> user_storage
-        maker_checker >> Edge(label = "Maker Requests Approved") >> points_ledger
+        cognito >> rr
+        maker_checker >> Edge(label = "Maker Requests Approved") >> [points_ledger, user_storage]
         maker_checker >> vpcpc >> mongodb
 
         points_ledger >> Edge(label = "Read DB") >> [pri_DB, rr]
